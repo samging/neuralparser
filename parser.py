@@ -21,6 +21,36 @@ def prep_env():
     subprocess.run(['ls', '-la'])
     return venv_dir  #name for activation
 
+
+
+def accuracy_function(prediction:(str,str), true_label:(str,str), *args, **kwargs):
+    import pandas as pd
+    import numpy as np
+    
+    """
+    expects: csv columns to be passed as parameters
+    positional parameters: [0] - name of column, [1] - name of file
+    """ 
+    
+    try:
+        true_label_df = pd.read_csv(true_label[1], usecols=[true_label[0]])[true_label[0]]
+        pred_label_df = pd.read_csv(prediction[1], usecols=[true_label[0]])[prediction[0]]
+    except FileNotFoundError as e:
+        raise e
+    
+    out = [].to_csv() 
+    match args[0]: 
+        #args[1]: sturcture index
+        
+        case "write_nn":
+            out[f"structure_{int(args[1] + 1)}"] = [(k,v) for k,v in kwargs.items()]
+        case _:
+            ...
+            
+    print(out := list([np.abs(T - p) / max(true_label_df) + max(pred_label_df) for T in true_label_df for p in pred_label_df]))
+    out.to_csv(name="acc_f_struct")
+    return out
+
 def install_dep(dep:str = ""): 
     import subprocess 
     import os
@@ -56,24 +86,63 @@ def generate_format(n:int = 10, *args):
         from torch import nn
         print('import done') 
         
+        def dataloader_train(dft):
+            import pandas as pd
+            import numpy as np
+            
+            try: 
+                df = pd.read_csv(dft)
+                print(f"Loaded csv: {dft}") 
+                return df
+            except FileNotFoundError as e:
+                raise e
+    
+
+        def dataloader_test(dfT):
+            #T: truth labels 
+            import pandas as pd
+            import numpy as np
+            
+            try: 
+                df = pd.read_csv(dfT)
+                print(f"Loaded csv: {dfT}") 
+                return df
+            except FileNotFoundError as e:
+                raise e
+        
         class NeuralNetwork(nn.Module):
-            def __init__(self):
+            def __init__(self,train_df, test_df, acc_fn, test_f_acc, train_f_acc):
                 super().__init__()
+                 
+                # `name`_f_acc: stands for meassuring accuracy of function
+                
+                self.data_loader_train = dataloader_train(train_df)
+                self.data_loader_test = dataloader_test(test_df)
+                self.acc_fn = acc_fn(k)
+                
                 self.linear_stack = nn.Sequential(
                     nn.Linear(28*28, 512),
                     nn.ReLU(),
                     nn.Linear(512, 10),
                 )
-            def say_hi(self): 
-                print('hi from neural network instance!')
+                
+            def forward(self, x):
+                logits = self.linear_stack(x)
+                softmax = nn.Softmax(dim=1)
+                return softmax(logits)
+            
+            def print_structure(): 
+                for name, param in self.named_parameters():
+                    print(f"Layer: {name} | Size: {param.size()} | Values : {param[:2]} \n")
         
-        # Instantiate and run it
-        net = NeuralNetwork()
+        net = NeuralNetwork(train_df, test_df, accuracy_function, test_f_acc, train_f_acc)
         net.say_hi()
         """
     raw_data = tutorial() 
     cleaned_code = textwrap.dedent(raw_data).strip()
-    exec(cleaned_code,{})
+    exec(cleaned_code,{
+        "train_df": "out.csv", "test_df": "out.csv", "accuracy_function": accuracy_function, "test_f_acc": (None, None), "train_f_acc": (None, None)
+    })
     
 def result_writer():
     import numpy as np 
@@ -115,8 +184,15 @@ def system_run():
         subprocess.run([command], shell=True, executable='/bin/bash',env=custom_env)
         exit(0)
 
+
+
+
 system_run()
 generate_format()
+dataloader_test("out.csv")
+dataloader_train("out.csv")
+
+accuracy_function(("this", "out.csv"), ("this", "out.csv"))
 #print(venv_path)
 
 #subprocess.run(venv_path, 'parser.py')
