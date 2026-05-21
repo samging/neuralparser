@@ -75,6 +75,14 @@ def generate_format(n:int = 10, *args):
     cleaned_code = textwrap.dedent(raw_data).strip()
     exec(cleaned_code,{})
     
+def result_writer():
+    import numpy as np 
+    import pandas as pd
+    
+    df = pd.DataFrame(np.array([1,2,3,4]), columns=["this"])
+    df.to_csv("out.csv")
+
+result_writer()
 
 
 def system_run(): 
