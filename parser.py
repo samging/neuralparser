@@ -19,6 +19,7 @@ def prep_env():
         print("PyTorch is already installed!")
 
     subprocess.run(['ls', '-la'])
+    return venv_dir  #name for activation
 
 def install_dep(dep:str = ""): 
     import subprocess 
@@ -47,11 +48,72 @@ def install_dep(dep:str = ""):
             
 
 def generate_format(n:int = 10, *args):
-    for _ in range(0,n):
-       exec('print(f"nn.{str(args[0])}({int(args[1])}, {int(args[2])})")')
+    import textwrap 
+    def tutorial() -> str: 
+        print("tutorial called") 
+        return """
+        import torch
+        from torch import nn
+        print('import done') 
+        
+        class NeuralNetwork(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear_stack = nn.Sequential(
+                    nn.Linear(28*28, 512),
+                    nn.ReLU(),
+                    nn.Linear(512, 10),
+                )
+            def say_hi(self): 
+                print('hi from neural network instance!')
+        
+        # Instantiate and run it
+        net = NeuralNetwork()
+        net.say_hi()
+        """
+    raw_data = tutorial() 
+    cleaned_code = textwrap.dedent(raw_data).strip()
+    exec(cleaned_code,{})
+    
 
-#generate_format(10,'Linear', 10,100)
-prep_env()
-install_dep('pytorch')
-install_dep('matplotlib')
-install_dep() 
+
+def system_run(): 
+    import os 
+    import subprocess
+     
+    custom_env = os.environ.copy()
+    
+    if "PARSER_LOOP_BREAK" not in os.environ: 
+        custom_env["PARSER_LOOP_BREAK"] = 'false'
+    else:
+        custom_env["PARSER_LOOP_BREAK"] = os.environ["PARSER_LOOP_BREAK"]
+    
+    loop_status = custom_env.get("PARSER_LOOP_BREAK") 
+    
+    if loop_status == "true":
+        print("Exiting the loop break") 
+        return
+
+    
+    if loop_status == "false":
+        print("\nstarting the loop") 
+        venv_path = prep_env()
+        parent_path = os.path.dirname(venv_path)
+        os.chdir(parent_path)
+        source_dest = os.path.join(venv_path, 'bin', 'activate')
+        command = f"source {source_dest} && python3 parser.py"
+        custom_env["PARSER_LOOP_BREAK"] = 'true'
+        
+        subprocess.run([command], shell=True, executable='/bin/bash',env=custom_env)
+        exit(0)
+
+system_run()
+generate_format()
+#print(venv_path)
+
+#subprocess.run(venv_path, 'parser.py')
+#generate_format()
+
+#install_dep('pytorch')
+#install_dep('matplotlib')
+#install_dep() 
