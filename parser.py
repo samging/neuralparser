@@ -132,17 +132,29 @@ class NeuralNetwork(nn.Module):
         self.data_loader_test = dataloader_test(test_df)
         self.net_id = net_id
         
-        layers = []
+        self.layers = []
         input_dim = 28 * 28
         
         for hidden_dim in layer_sizes:
-            layers.append(nn.Linear(input_dim, hidden_dim))
-            layers.append(nn.ReLU())
+            self.layers.append(nn.Linear(input_dim, hidden_dim))
+            self.layers.append(nn.ReLU())
             input_dim = hidden_dim
-            
-        layers.append(nn.Linear(input_dim, 10))
+         
+         
+        self.layers.append(nn.Linear(input_dim, 10))
+        self.linear_stack = nn.Sequential(*self.layers)
+    
+    def save_net(self): 
+        print(f"Net_ID: {self.net_id} (Saving)")
         
-        self.linear_stack = nn.Sequential(*layers)
+        neural_metrics = pd.DataFrame({
+            "network_id": [f"net_{self.net_id}"],
+            "architecture": [str(self.linear_stack)]
+        })
+        
+        filename = "NeuralNetwork.csv"
+        file_exists = os.path.exists(filename)
+        neural_metrics.to_csv(filename, mode='a', index=False, header=not file_exists) 
         
     def forward(self, x):
         return self.linear_stack(x)
@@ -153,6 +165,7 @@ class NeuralNetwork(nn.Module):
             print("Data empty. Skipping execution loop.")
             return
             
+        self.save_net()
         labels = self.data_loader_train.iloc[:, 0].values.astype(np.int64)
         features = self.data_loader_train.iloc[:, 1:785].values.astype(np.float32) / 255.0
         
@@ -173,7 +186,7 @@ class NeuralNetwork(nn.Module):
             optimizer.step()
             
             history.append(loss.item())
-            if (epoch + 1) % 100 == 0:
+            if (epoch + 1) % 10 == 0:
                 print(f"Net {self.net_id} | Epoch {epoch+1}/{epochs} | Loss: {loss.item():.4f}")
         
         if not self.data_loader_test.empty:
@@ -188,18 +201,16 @@ class NeuralNetwork(nn.Module):
             
             output_preds = pd.DataFrame({
                 "predicted_digit": predictions.cpu().numpy(),
-                "confidence_score": torch.max(probabilities, dim=1).values.cpu().numpy(),
-                "neural_structure": layers
+                "confidence_score": torch.max(probabilities, dim=1).values.cpu().numpy()
             }) 
             output_preds.to_csv(f"trained_results_net_{self.net_id}.csv", index=False)
             
             loss_df = pd.DataFrame({"epoch_loss": history})
             loss_df.to_csv(f"loss_history_net_{self.net_id}.csv", index=False)
             print(f"Saved configuration data blocks for Network #{self.net_id}!")
-
-# Read dynamic configs injected via context mapping loops
+        
 net = NeuralNetwork(train_df, test_df, layer_configuration, network_index)
-net.train_and_evaluate(epochs=1000)
+net.train_and_evaluate(epochs=10)
 """
     import os 
     raw_data = tutorial() 
@@ -229,7 +240,6 @@ net.train_and_evaluate(epochs=1000)
         } 
         exec(cleaned_code, exec_context)
 
-generate_format()
 
 def system_run(): 
     import os 
