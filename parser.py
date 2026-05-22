@@ -107,7 +107,9 @@ def dataloader_train(dft):
     import pandas as pd
     try: 
         df = pd.read_csv(dft) if os.path.exists(dft) else pd.DataFrame()
-        print(f"Loaded train csv: {dft}") 
+        print(f"Loaded train csv: {dft}")
+        if df.empty:
+            raise ValueError("Can't use empty dataframe")
         return df
     except Exception as e:
         raise e
@@ -117,6 +119,8 @@ def dataloader_test(dfT):
     try: 
         df = pd.read_csv(dfT) if os.path.exists(dfT) else pd.DataFrame()
         print(f"Loaded test csv: {dfT}") 
+        if df.empty:
+            raise ValueError("Can't use empty dataframe")
         return df
     except Exception as e:
         raise e
@@ -128,7 +132,6 @@ class NeuralNetwork(nn.Module):
         self.data_loader_test = dataloader_test(test_df)
         self.net_id = net_id
         
-        # DYNAMIC INJECTION: Build layer lists programmatically
         layers = []
         input_dim = 28 * 28
         
@@ -137,10 +140,8 @@ class NeuralNetwork(nn.Module):
             layers.append(nn.ReLU())
             input_dim = hidden_dim
             
-        # Add final output class connections (10 digits)
         layers.append(nn.Linear(input_dim, 10))
         
-        # Unpack list directly into Sequential layout wrapper
         self.linear_stack = nn.Sequential(*layers)
         
     def forward(self, x):
@@ -166,7 +167,6 @@ class NeuralNetwork(nn.Module):
         self.train()
         for epoch in range(epochs):
             optimizer.zero_grad()
-            # Optimize over a batch size slice (e.g., 4000 rows for stable high-epoch tracking)
             pred = self.forward(X[:4000]) 
             loss = loss_fn(pred, y[:4000])
             loss.backward()
@@ -176,7 +176,6 @@ class NeuralNetwork(nn.Module):
             if (epoch + 1) % 100 == 0:
                 print(f"Net {self.net_id} | Epoch {epoch+1}/{epochs} | Loss: {loss.item():.4f}")
         
-        # Run test inference predictions
         if not self.data_loader_test.empty:
             test_features = self.data_loader_test.iloc[:, 1:785].values.astype(np.float32) / 255.0
             input_test = torch.tensor(test_features)
@@ -187,14 +186,13 @@ class NeuralNetwork(nn.Module):
                 probabilities = nn.Softmax(dim=1)(logits)
                 predictions = torch.argmax(probabilities, dim=1)
             
-            # Save predictions and final loss run metrics out to disk 
             output_preds = pd.DataFrame({
                 "predicted_digit": predictions.cpu().numpy(),
-                "confidence_score": torch.max(probabilities, dim=1).values.cpu().numpy()
+                "confidence_score": torch.max(probabilities, dim=1).values.cpu().numpy(),
+                "neural_structure": layers
             }) 
             output_preds.to_csv(f"trained_results_net_{self.net_id}.csv", index=False)
             
-            # Keep historical convergence loss logs to plot your metrics tomorrow
             loss_df = pd.DataFrame({"epoch_loss": history})
             loss_df.to_csv(f"loss_history_net_{self.net_id}.csv", index=False)
             print(f"Saved configuration data blocks for Network #{self.net_id}!")
@@ -207,8 +205,6 @@ net.train_and_evaluate(epochs=1000)
     raw_data = tutorial() 
     cleaned_code = textwrap.dedent(raw_data).strip()
     
-    # 30 Unique Neural Network hidden layer size maps to evaluate matrix performance
-    # This automatically generates variation variations from narrow-deep to short-wide topologies
     architectures = [
         [512], [256], [128],                   # Single hidden layer variants
         [512, 256], [256, 128], [512, 128],     # Dual hidden layer variants
@@ -216,9 +212,7 @@ net.train_and_evaluate(epochs=1000)
         [128, 64], [256, 64], [512, 64]         # Bottleneck structure configurations
     ]
     
-    # Generate up to 30 structural combinations by continuing patterns
-    while len(architectures) < 30:
-        # Fills out residual slots dynamically with variations
+    while len(architectures) < 5:
         architectures.append([512 - (len(architectures) * 10), 128])
 
     # TRIGGER SYSTEM LOOP RUNS OVER ALL 30 ARCHITECTURES
@@ -267,5 +261,7 @@ def system_run():
         subprocess.run([command], shell=True, executable='/bin/bash',env=custom_env)
         exit(0)
 
+
+#prep_env()
 system_run()
 generate_format()
